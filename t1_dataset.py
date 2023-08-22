@@ -4,7 +4,6 @@ import sentencepiece as spm
 
 
 torch.manual_seed(42)
-
 max_seq_length = 50
 
 
@@ -60,7 +59,6 @@ class TranslationDataset(torch.utils.data.Dataset):
             [item["label"] for item in batch], batch_first=True, padding_value=0
         )
 
-        print(contx_pad.shape)
         return {
             "eng": [item["en"] for item in batch],
             "de": [item["de"] for item in batch],
