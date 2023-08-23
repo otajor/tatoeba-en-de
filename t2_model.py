@@ -1,15 +1,11 @@
 # %%
 import torch
 import numpy as np
+import torch.distributed as dist
 from t1_dataset import trn_dl, tst_dl, ds
 
 import random
-import wandb
 import time
-
-is_cuda = torch.cuda.is_available()
-device = "cuda:0" if is_cuda else "cpu"
-
 
 EMBD = 128
 HEAD = 4
@@ -111,15 +107,16 @@ class T5(torch.nn.Module):
         self.enc_blks = torch.nn.ModuleList([EncoderBlock() for _ in range(BLKS)])
         self.dec_blks = torch.nn.ModuleList([DecoderBlock() for _ in range(BLKS)])
         self.vocab = torch.nn.Linear(EMBD, VOCB)
+        self.rank = self.rank = dist.get_rank()
 
     def forward(self, src, tgt):
         src = self.tok_embd(src)
-        src = src + self.pos_embd(torch.arange(src.size(1), device=device))
+        src = src + self.pos_embd(torch.arange(src.size(1), device=self.rank))
         for blk in self.enc_blks:
             src = blk(src)
 
         tgt = self.tok_embd(tgt)
-        tgt = tgt + self.pos_embd(torch.arange(tgt.size(1), device=device))
+        tgt = tgt + self.pos_embd(torch.arange(tgt.size(1), device=self.rank))
         for blk in self.dec_blks:
             tgt = blk(src, tgt)
         tgt = self.vocab(tgt)
@@ -133,7 +130,7 @@ class T5(torch.nn.Module):
 
     def translate(self, src, num=20):
         self.eval()
-        tgt = torch.tensor([[2]], device=device)
+        tgt = torch.tensor([[2]], device=self.rank)
         for _ in range(num):
             with torch.no_grad():
                 out = self(src, tgt)
